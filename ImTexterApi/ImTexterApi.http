@@ -1,0 +1,6 @@
+@ImTexterApi_HostAddress = http://localhost:5155
+
+GET {{ImTexterApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
