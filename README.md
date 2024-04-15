@@ -4,7 +4,7 @@ This Repo is built using .net Core 8
 IDE : Visual Studio 2022 (Community Edition)
 
 To run this application 
-You need to open it in visula studio and hit on run - Swagger supported UI will open Up.
+You need to open it in visual studio and hit on run - Swagger supported UI will open Up.
 
 ![image](https://github.com/aravindapk/ImTexterApiNetCore/assets/48381916/4ea9bdcc-a516-4170-8226-56e26540d8d2)
 
