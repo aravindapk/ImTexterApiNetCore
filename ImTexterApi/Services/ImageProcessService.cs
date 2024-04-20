@@ -2,7 +2,7 @@
 using ImTexterApi.Services.ServiceAttribute;
 using HtmlAgilityPack;
 using ImTexterApi.Helpers;
-using System;
+using System.Net;
 
 namespace ImTexterApi.Services
 {
@@ -18,7 +18,7 @@ namespace ImTexterApi.Services
             _htmlLoadService = htmlLoadService;
         } 
         
-        public Images ProcessImages(string url)
+        public async Task<Images> ProcessImages(string url)
         {
             _logger.LogInformation($" Processing Images for {url} has begun");
 
@@ -31,18 +31,19 @@ namespace ImTexterApi.Services
 
             try
             {
-               var htmlDoc = _htmlLoadService.Load(url);
+                ( HtmlDocument htmlDoc, HttpStatusCode status) =  await _htmlLoadService.LoadHtmlWithStatus(url);
                 var imageItems = new List<ImageItem>();
-                imageItems.AddRange(GetImageUrlFromImgTag(url, htmlDoc));
-                imageItems.AddRange(GetImageItemsfromStyle(url, htmlDoc));
-
-
-
+                if(htmlDoc != null)
+                {
+                    imageItems.AddRange(GetImageUrlFromImgTag(url, htmlDoc));
+                    imageItems.AddRange(await GetImageItemsfromStyleAsync(url, htmlDoc));
+                }
+                
                 var images = new Images
                 {
                     ImageCount = imageItems.Count,
                     Items = imageItems,
-                    Status = "Success!"
+                    Status = imageItems.Count > 0 ? "Success!" : $"Unable to fetch Images : {status.ToString()}"
                 };
 
                 _cachingService.SetCacheData(cacheKey, images, TimeSpan.FromHours(1));
@@ -61,12 +62,22 @@ namespace ImTexterApi.Services
             }
         }
 
-        private List<ImageItem> GetImageItemsfromStyle(string url, HtmlDocument doc)
+        private async Task<List<ImageItem>> GetImageItemsfromStyleAsync(string url, HtmlDocument doc)
         {
             var imageItems = new List<ImageItem>();
 
             var bgUrls = doc.DocumentNode.Descendants().Where(d => d.Attributes.Contains("style") && (d.Attributes["style"].
-            Value.Contains("background:url") || d.Attributes["style"].Value.Contains("background: url") || d.Attributes["style"].Value.Contains("background-image:url") || d.Attributes["style"].Value.Contains("background-image: url"))).ToList();
+            Value.Contains("background:url") || d.Attributes["style"].Value.Contains("background: url") || d.Attributes["style"].Value.Contains("background-image:url") || d.Attributes["style"].Value.Contains("background-image: url") 
+            || d.Attributes["style"].Value.Contains("background-image"))).ToList();
+            if(!bgUrls.Any())
+            {
+                HttpClient httpClient = new HttpClient();
+                HttpResponseMessage response = await httpClient.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    string content = await response.Content.ReadAsStringAsync();
+                }
+            }
             foreach (var bgUrl in bgUrls)
             {
                 var backgroundUrl = bgUrl.GetAttributeValue("style", "");
@@ -121,5 +132,6 @@ namespace ImTexterApi.Services
             .Where(item => item != null && !string.IsNullOrEmpty(item.Src) && !string.IsNullOrEmpty(item.Properties.Format))
             .ToList();
         }
+
     }
 }

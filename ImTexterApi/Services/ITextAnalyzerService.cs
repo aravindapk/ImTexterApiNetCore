@@ -4,6 +4,6 @@ namespace ImTexterApi.Services
 {
     public interface ITextAnalyzerService
     {
-        TextAnalyzerData ProcessText(TextAnalyzerRequest textAnalyzerRequest);
+        Task<TextAnalyzerData> ProcessTextAsync(TextAnalyzerRequest textAnalyzerRequest);
     }
 }

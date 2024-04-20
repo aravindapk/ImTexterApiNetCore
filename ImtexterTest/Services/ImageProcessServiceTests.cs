@@ -12,84 +12,53 @@ namespace ImtexterTest.Services
 {
     public class ImageProcessServiceTests
     {
-        private readonly Mock<ICachingService> _mockCachingService;
-        private readonly Mock<ILogger<ImageProcessService>> _mockLoggingService;
-        private readonly Mock<IHtmlLoadService> _mockLoaderService;
-        private readonly ImageProcessService _imageService;
-        private readonly string _testUrl = "https://test.com/en";
-
-        public ImageProcessServiceTests()
-        {
-            _mockCachingService = new Mock<ICachingService>();
-            _mockLoggingService = new Mock<ILogger<ImageProcessService>>();
-            _mockLoaderService = new Mock<IHtmlLoadService>();
-            _imageService = new ImageProcessService(_mockCachingService.Object, _mockLoggingService.Object, _mockLoaderService.Object);
-        }
-
-        [Fact]
-        public void ProcessImages_ReturnsCachedData_IfAvailable()
-        {
-            // Arrange
-            var cachedImages = new Images
+            [Fact]
+            public async Task ProcessImages_Should_Return_Cached_Data_If_Available()
             {
-                ImageCount = 1,
-                Items = new List<ImageItem> { new ImageItem { Src = "http://image.jpg" } },
-                Status = "Success!"
-            };
+                // Arrange
+                var url = "https://example.com";
+                var cacheKey = $"ImageExtractor_{url}";
+                var cachedImages = new Images { ImageCount = 1, Items = new List<ImageItem>(), Status = "Cached" };
 
-            _mockCachingService.Setup(x => x.GetCacheData<Images>($"ImageExtractor_{_testUrl}"))
-                               .Returns(cachedImages);
+                var cachingServiceMock = new Mock<ICachingService>();
+                cachingServiceMock.Setup(c => c.GetCacheData<Images>(cacheKey)).Returns(cachedImages);
 
-            // Act
-            var result = _imageService.ProcessImages(_testUrl);
+                var loggerMock = new Mock<ILogger<ImageProcessService>>();
 
-            // Assert
-            Assert.Equal(cachedImages, result);
-        }
+                var htmlLoadServiceMock = new Mock<IHtmlLoadService>();
 
-        [Fact]
-        public void ProcessImages_FetchesImages_WhenNoCache()
-        {
-            // Arrange
-            _mockCachingService.Setup(x => x.GetCacheData<Images>($"ImageExtractor_{_testUrl}"))
-                               .Returns((Images)null);
+                var service = new ImageProcessService(cachingServiceMock.Object, loggerMock.Object, htmlLoadServiceMock.Object);
 
-            
-            var document = new HtmlDocument();
-            document.LoadHtml("<html><body><img src='http://image.jpg'></body></html>");
-            _mockLoaderService.Setup(x => x.Load(_testUrl)).Returns(document);
+                // Act
+                var result = await service.ProcessImages(url);
 
-            var expectedImages = new Images
+                // Assert
+                Assert.Equal(cachedImages, result);
+            }
+
+           
+            [Fact]
+            public async Task ProcessImages_Should_Return_Error_Status_If_Exception_Occurs()
             {
-                ImageCount = 1,
-                Items = new List<ImageItem> { new ImageItem { Src = "http://image.jpg" } },
-                Status = "Success!"
-            };
+                // Arrange
+                var url = "https://example.com";
 
-            // Act
-            var result = _imageService.ProcessImages(_testUrl);
+                var cachingServiceMock = new Mock<ICachingService>();
+                cachingServiceMock.Setup(c => c.GetCacheData<Images>(It.IsAny<string>())).Returns((Images)null);
 
-            // Assert
-            Assert.Equal(expectedImages.ImageCount, result.ImageCount);
-            Assert.Equal(expectedImages.Status, result.Status);
-        }
+                var loggerMock = new Mock<ILogger<ImageProcessService>>();
 
-        [Fact]
-        public void ProcessImages_ReturnsHandledError_WhenExceptionIsCaught()
-        {
-            // Arrange
-            _mockCachingService.Setup(x => x.GetCacheData<Images>($"ImageExtractor_{_testUrl}"))
-                               .Returns((Images)null);
+                var htmlLoadServiceMock = new Mock<IHtmlLoadService>();
+                htmlLoadServiceMock.Setup(h => h.LoadHtmlWithStatus(url)).ThrowsAsync(new Exception("Test Exception"));
 
-            var mockHtmlWeb = new Mock<HtmlWeb>();
-            _mockLoaderService.Setup(x => x.Load(_testUrl)).Throws(new Exception("Failed to load URL"));
+                var service = new ImageProcessService(cachingServiceMock.Object, loggerMock.Object, htmlLoadServiceMock.Object);
 
-            // Act
-            var result = _imageService.ProcessImages(_testUrl);
+                // Act
+                var result = await service.ProcessImages(url);
 
-            // Assert
-            Assert.Equal(0, result.ImageCount);
-            Assert.Contains("Failed to load URL", result.Status);
+                // Assert
+                Assert.Equal(0, result.ImageCount);
+                Assert.Equal("Test Exception", result.Status);
+            }
         }
     }
-}

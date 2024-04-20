@@ -19,11 +19,11 @@ namespace ImTexterApi.Controllers
 
 
         [HttpPost("AnalyzeTextFromHtmlDocument")]
-        public ActionResult AnalyzeText(TextAnalyzerRequest textAnalyzerRequest)
+        public async Task<ActionResult> AnalyzeTextAsync(TextAnalyzerRequest textAnalyzerRequest)
         {
             try
             {
-                var result = _textAnalyzerService.ProcessText(textAnalyzerRequest);
+                var result = await _textAnalyzerService.ProcessTextAsync(textAnalyzerRequest);
                 return Ok(result);
             }
             catch (Exception ex)

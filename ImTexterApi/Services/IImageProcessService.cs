@@ -4,6 +4,6 @@ namespace ImTexterApi.Services
 {
     public interface IImageProcessService
     {
-        Images ProcessImages(string url);
+        Task<Images> ProcessImages(string url);
     }
 }

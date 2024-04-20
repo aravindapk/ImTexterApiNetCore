@@ -1,56 +1,63 @@
 ﻿using ImTexterApi.Controllers;
 using ImTexterApi.Models;
 using ImTexterApi.Services;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ImtexterTest.Controllers
 {
-    public class ImageExtractorControllerTests
+    using System;
+    using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.Extensions.Logging;
+    using Moq;
+    using Xunit;
+
+    namespace ImtexterTest.Controllers
     {
-        private readonly Mock<IImageProcessService> _mockImageProcessService = new Mock<IImageProcessService>();
-        private readonly Mock<ILogger<ImageExtractorController>> _mockLogger = new Mock<ILogger<ImageExtractorController>>();
-        private readonly ImageExtractorController _controller;
-
-        public ImageExtractorControllerTests()
+        public class ImageExtractorControllerTests
         {
-            _controller = new ImageExtractorController(_mockLogger.Object,_mockImageProcessService.Object);
-        }
+            [Fact]
+            public async Task GetAsync_Should_Return_Ok_Result_When_ProcessImages_Succeeds()
+            {
+                // Arrange
+                var url = "https://example.com";
+                var expectedData = new Images { ImageCount = 1, Items = new List<ImageItem>(), Status = "Success" };
 
-        [Fact]
-        public void Get_ReturnsOkResult_WithValidUrl()
-        {
-            // Arrange
-            var url = "http://test-thisnew.com";
-            var expectedImages = new Images();
-            _mockImageProcessService.Setup(s => s.ProcessImages(url)).Returns(expectedImages);
+                var loggerMock = new Mock<ILogger<ImageExtractorController>>();
 
-            // Act
-            var result = _controller.Get(url);
+                var imageProcessServiceMock = new Mock<IImageProcessService>();
+                imageProcessServiceMock.Setup(s => s.ProcessImages(url)).ReturnsAsync(expectedData);
 
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(expectedImages, okResult.Value);
-        }
+                var controller = new ImageExtractorController(loggerMock.Object, imageProcessServiceMock.Object);
 
-        [Fact]
-        public void Get_ReturnsBadRequest_OnException()
-        {
-            // Arrange
-            var url = "http://test-thisnew.com";
-            _mockImageProcessService.Setup(s => s.ProcessImages(url)).Throws(new Exception("Failed to process images"));
+                // Act
+                var result = await controller.GetAsync(url);
 
-            // Act
-            var result = _controller.Get(url);
+                // Assert
+                Assert.IsType<OkObjectResult>(result);
+                var okResult = result as OkObjectResult;
+                Assert.Equal(expectedData, okResult.Value);
+            }
 
-            // Assert
-            Assert.IsType<BadRequestResult>(result);
+            [Fact]
+            public async Task GetAsync_Should_Return_BadRequest_Result_When_ProcessImages_Throws_Exception()
+            {
+                // Arrange
+                var url = "https://example.com";
+
+                var loggerMock = new Mock<ILogger<ImageExtractorController>>();
+
+                var imageProcessServiceMock = new Mock<IImageProcessService>();
+                imageProcessServiceMock.Setup(s => s.ProcessImages(url)).ThrowsAsync(new Exception("Test Exception"));
+
+                var controller = new ImageExtractorController(loggerMock.Object, imageProcessServiceMock.Object);
+
+                // Act
+                var result = await controller.GetAsync(url);
+
+                // Assert
+                Assert.IsType<BadRequestResult>(result);
+            }
         }
     }
+
 }

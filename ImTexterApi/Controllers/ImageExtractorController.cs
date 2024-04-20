@@ -21,11 +21,11 @@ namespace ImTexterApi.Controllers
         }
 
         [HttpGet("ExtractImages")]
-        public IActionResult Get(string url)
+        public async Task<IActionResult> GetAsync(string url)
         {
             try
             {
-                var result = this._imageProcessService.ProcessImages(url);
+                var result = await this._imageProcessService.ProcessImages(url);
 
                 _logger.LogInformation($"Images Extraxted Successfully for: {url}");
                 return Ok(result);

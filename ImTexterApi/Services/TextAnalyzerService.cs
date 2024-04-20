@@ -3,6 +3,7 @@ using ImTexterApi.Controllers;
 using ImTexterApi.Helpers;
 using ImTexterApi.Models;
 using ImTexterApi.Services.ServiceAttribute;
+using Microsoft.AspNetCore.Http;
 using System.Net;
 using System.Text.RegularExpressions;
 
@@ -20,7 +21,7 @@ namespace ImTexterApi.Services
             _logger = logger;
             _htmlLoadService = htmlLoadService;
         }
-        public TextAnalyzerData ProcessText(TextAnalyzerRequest textAnalyzerRequest)
+        public async Task<TextAnalyzerData> ProcessTextAsync(TextAnalyzerRequest textAnalyzerRequest)
         {
             _logger.LogInformation($"Processing of text analyze has begun for {textAnalyzerRequest.Url}");
             var textAnalyzerData = new TextAnalyzerData();
@@ -45,9 +46,10 @@ namespace ImTexterApi.Services
             }
             else
             {
-                words = GetWords(textAnalyzerRequest, out string status);
+                (words, HttpStatusCode statusCode) = await GetWordsAsync(textAnalyzerRequest);
                 _cachingService.SetCacheData(cacheKey, words, TimeSpan.FromHours(1));
-                textAnalyzerData.DataFetchStatus = status;
+                textAnalyzerData.DataFetchStatus = words.Count > 0 ? "Success!" : $"Failed to fetch Data : {statusCode.ToString()}";
+
             }
             var wordCount = words.Count;
             var topTenWordsByDesc = wordCount > 0 ? GetTopTenWords(words, textAnalyzerRequest.Excludedwords) : [];
@@ -79,28 +81,34 @@ namespace ImTexterApi.Services
             return topTenWords;
         }
 
-        private List<string>  GetWords (TextAnalyzerRequest textAnalyzerRequest, out string status)
+        private async Task<(List<string>, HttpStatusCode statusCode)> GetWordsAsync (TextAnalyzerRequest textAnalyzerRequest)
         {
             try
             {
-                HtmlDocument? doc = _htmlLoadService.Load(textAnalyzerRequest.Url);
+                (HtmlDocument? doc, HttpStatusCode statusCode) = await _htmlLoadService.LoadHtmlWithStatus(textAnalyzerRequest.Url);
                 
-                var extractedText = WebUtility.HtmlDecode(doc.DocumentNode.InnerText);
-                var words = extractedText.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(text =>
+
+                if(doc != null)
                 {
-                    text = StringHelper.RemoveHtmlTags(text);
-                    text = StringHelper.RemoveSpecialCharacters(text);
-                    return text.Trim();
-                }).Where(text => !string.IsNullOrEmpty(text) && text.Length > 1).ToList();
-                var wordCount = words.Count;
-                status = wordCount > 0 ? "Success!" : "No words";
-                return words;
+                    var extractedText = WebUtility.HtmlDecode(doc.DocumentNode.InnerText);
+
+                    var words = extractedText.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(text =>
+                    {
+                        text = StringHelper.RemoveHtmlTags(text);
+                        text = StringHelper.RemoveSpecialCharacters(text);
+                        return text.Trim();
+                    }).Where(text => !string.IsNullOrEmpty(text) && text.Length > 1).ToList();
+                    var wordCount = words.Count;
+                    return (words, statusCode);
+                }
+               
+                return new (new List<string>(), statusCode) ;
             }
             catch (Exception ex)
             {
-                status = ex.Message;
-                _logger.LogError(ex, status);
-                return [];
+                _logger.LogError(ex, ex.Message);
+                var statCode = HttpStatusCode.NotFound;
+                return ([], statCode);
             }
             
         }

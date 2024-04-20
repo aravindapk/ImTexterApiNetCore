@@ -10,46 +10,48 @@ namespace ImtexterTest.Controllers
     public class TextAnalyzerControllerTests
     {
         [Fact]
-        public void AnalyzeText_ReturnsOkResult_WhenServiceSucceeds()
+        public async Task AnalyzeTextAsync_Should_Return_Ok_Result_When_ProcessTextAsync_Succeeds()
         {
             // Arrange
-            var mockService = new Mock<ITextAnalyzerService>();
-            var mockLogger = new Mock<ILogger<TextAnalyzerController>>();
-            var controller = new TextAnalyzerController(mockService.Object, mockLogger.Object);
-            var request = new TextAnalyzerRequest();
+            var request = new TextAnalyzerRequest { Url = "https://example.com" };
+            var expectedResult = new TextAnalyzerData { WordCount = 10, TopWords = new List<KeyValuePair<string, int>>(), DataFetchStatus = "Success" };
 
-            mockService.Setup(x => x.ProcessText(It.IsAny<TextAnalyzerRequest>()))
-                       .Returns( new TextAnalyzerData
-                       {
-                           WordCount = 1,
-                       });
+            var textAnalyzerServiceMock = new Mock<ITextAnalyzerService>();
+            textAnalyzerServiceMock.Setup(s => s.ProcessTextAsync(request)).ReturnsAsync(expectedResult);
+
+            var loggerMock = new Mock<ILogger<TextAnalyzerController>>();
+
+            var controller = new TextAnalyzerController(textAnalyzerServiceMock.Object, loggerMock.Object);
 
             // Act
-            var result = controller.AnalyzeText(request);
+            var result = await controller.AnalyzeTextAsync(request);
 
             // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.NotNull(okResult.Value);
+            Assert.IsType<OkObjectResult>(result);
+            var okResult = result as OkObjectResult;
+            Assert.Equal(expectedResult, okResult.Value);
         }
 
         [Fact]
-        public void AnalyzeText_ReturnsBadRequest_WhenServiceThrowsException()
+        public async Task AnalyzeTextAsync_Should_Return_BadRequest_Result_When_ProcessTextAsync_Throws_Exception()
         {
             // Arrange
-            var mockService = new Mock<ITextAnalyzerService>();
-            var mockLogger = new Mock<ILogger<TextAnalyzerController>>();
-            var controller = new TextAnalyzerController(mockService.Object, mockLogger.Object);
-            var request = new TextAnalyzerRequest();
+            var request = new TextAnalyzerRequest { Url = "https://example.com" };
 
-            mockService.Setup(x => x.ProcessText(It.IsAny<TextAnalyzerRequest>()))
-                       .Throws(new Exception("Test exception"));
+            var textAnalyzerServiceMock = new Mock<ITextAnalyzerService>();
+            textAnalyzerServiceMock.Setup(s => s.ProcessTextAsync(request)).ThrowsAsync(new Exception("Test Exception"));
+
+            var loggerMock = new Mock<ILogger<TextAnalyzerController>>();
+
+            var controller = new TextAnalyzerController(textAnalyzerServiceMock.Object, loggerMock.Object);
 
             // Act
-            var result = controller.AnalyzeText(request);
+            var result = await controller.AnalyzeTextAsync(request);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal("Test exception", badRequestResult.Value);
+            Assert.IsType<BadRequestObjectResult>(result);
+            var badRequestResult = result as BadRequestObjectResult;
+            Assert.Equal("Test Exception", badRequestResult.Value);
         }
     }
 }
