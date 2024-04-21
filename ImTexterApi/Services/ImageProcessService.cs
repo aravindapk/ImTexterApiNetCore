@@ -16,8 +16,13 @@ namespace ImTexterApi.Services
             _cachingService = cachingService;
             _logger = logger;
             _htmlLoadService = htmlLoadService;
-        } 
+        }
         
+        /// <summary>
+        /// This will process the incoming url to fetch images
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns></returns>
         public async Task<Images> ProcessImages(string url)
         {
             _logger.LogInformation($" Processing Images for {url} has begun");
@@ -31,7 +36,7 @@ namespace ImTexterApi.Services
 
             try
             {
-                ( HtmlDocument htmlDoc, HttpStatusCode status) =  await _htmlLoadService.LoadHtmlWithStatus(url);
+                (HtmlDocument htmlDoc, HttpStatusCode status) = await _htmlLoadService.LoadHtmlWithStatus(url);
                 var imageItems = new List<ImageItem>();
                 if(htmlDoc != null)
                 {

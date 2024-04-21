@@ -21,6 +21,12 @@ namespace ImTexterApi.Services
             _logger = logger;
             _htmlLoadService = htmlLoadService;
         }
+
+        /// <summary>
+        /// Analyzes the Html document loaded from the url
+        /// </summary>
+        /// <param name="textAnalyzerRequest"></param>
+        /// <returns></returns>
         public async Task<TextAnalyzerData> ProcessTextAsync(TextAnalyzerRequest textAnalyzerRequest)
         {
             _logger.LogInformation($"Processing of text analyze has begun for {textAnalyzerRequest.Url}");
